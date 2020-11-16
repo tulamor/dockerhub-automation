@@ -1,0 +1,20 @@
+#repository permissions: admin / write / read
+
+repositories:
+  reponame1:
+    teamname: admin
+    teamname1: write
+    teamname2: read
+  cc7:
+    teamname1: admin
+  cc8:
+    teamname: write
+  reponame2:
+    teamname1: write
+teams:
+  teamname1:
+  - username-1
+  - username-2
+  - username-3
+  teamname2:
+  - username-1
