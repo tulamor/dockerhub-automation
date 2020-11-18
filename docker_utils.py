@@ -3,6 +3,9 @@
 from __future__ import print_function
 from json import loads
 from os.path import dirname, abspath, join, expanduser
+from requests import request
+from requests.exceptions import HTTPError
+import os, glob
 
 DOCKER_REGISTRY_API='https://registry-1.docker.io/v2'
 DOCKER_HUB_API='https://hub.docker.com/v2'
@@ -37,3 +40,41 @@ def get_token(filepath=expanduser("~/.docker-token")):
   response = http_request(uri, loads(secret), method = 'POST', json=True)
   try: return response['token']
   except: return response
+
+def get_tags(image, page_size=500):
+  uri = '/repositories/%s/tags' % image
+  payload = {"page_size" : page_size}
+  response = hub_request(uri, params=payload, json=True)
+  tags = []
+  try:
+    for tag in response['results']:
+      tags.append(str(tag['name']))
+  except: return (False, response)
+  return (True, tags)
+
+def get_repos(username, page_size=500):
+  uri = '/repositories/%s/' % username
+  payload = {"page_size" : page_size}
+  response = hub_request(uri, params=payload, json=True)
+  repos = []
+  try:
+    for repo in response['results']:
+      repos.append(str(repo['name']))
+  except: return (False, response)
+  return (True, repos)
+
+def create_repo(username, repo, private=False):
+  payload = {
+    "namespace":"%s" % username,
+    "name":"%s" % repo,
+    "is_private":"%s" % private
+  }
+  response = hub_request("/repositories/", payload, method = 'POST')
+  return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+
+def delete_repo(username, repo, force=False):
+  uri = '/repositories/%s/%s' % (username, repo)
+  if force or not get_tags('%s/%s'%(username,repo))[1]:
+    response = hub_request(uri, method = 'DELETE')
+    return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+  else: return False
