@@ -78,3 +78,25 @@ def delete_repo(username, repo, force=False):
     response = hub_request(uri, method = 'DELETE')
     return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
   else: return False
+
+
+def get_members(username, teamname):
+  uri = '/orgs/%s/groups/%s/members/' % (username, teamname)
+  response = hub_request(uri, json=True)
+  members = []
+  try:
+    for member in response:
+      members.append(str(member['username']))
+  except: return (False, response)
+  return (True, members)
+
+def add_member(username, teamname, member):
+  uri = '/orgs/%s/groups/%s/members/' % (username, teamname)
+  data = {"member":"%s" % member}
+  response = hub_request(uri, data=data, method = 'POST')
+  return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+
+def delete_member(username, teamname, member):
+  uri = '/orgs/%s/groups/%s/members/%s/' % (username, teamname, member)
+  response = hub_request(uri, method = 'DELETE')
+  return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
