@@ -100,3 +100,16 @@ def delete_member(username, teamname, member):
   uri = '/orgs/%s/groups/%s/members/%s/' % (username, teamname, member)
   response = hub_request(uri, method = 'DELETE')
   return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+
+def create_team(username, teamname):
+  uri = '/orgs/%s/groups/' % username
+  data = {"name":"%s" % teamname}
+  response = hub_request(uri, data=data, method = 'POST')
+  return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+
+def delete_team(username, teamname, force=False):
+  uri = '/orgs/%s/groups/%s' % (username, teamname)
+  if force or not get_members(username, teamname)[1]:
+    response = hub_request(uri, method = 'DELETE')
+    return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+  else: return False
