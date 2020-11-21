@@ -107,9 +107,28 @@ def create_team(username, teamname):
   response = hub_request(uri, data=data, method = 'POST')
   return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
 
-def delete_team(username, teamname, force=False):
-  uri = '/orgs/%s/groups/%s' % (username, teamname)
-  if force or not get_members(username, teamname)[1]:
-    response = hub_request(uri, method = 'DELETE')
-    return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
-  else: return False
+def get_permissions(username, teamname):
+  uri = '/orgs/%s/groups/%s/repositories/' % (username, teamname)
+  headers = {}
+  response = hub_request(uri, headers, json=True)
+  permissions = {}
+  try:
+    for permission in response:
+      permissions[permission['repository']] = permission['permission']
+  except: return (False, response)
+  return (True, permissions)
+
+# permissions must be: 'read' / 'write' / 'admin'
+def add_permissions(username, repo, group_id, permission):
+  uri = '/repositories/%s/%s/groups/' % (username, repo)
+  payload = {
+    "group_id" : "%s" % group_id,
+    "permission" : "%s" % permission
+  }
+  response = hub_request(uri, data=payload, method = 'POST')
+  return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+
+def delete_permissions(username, repo, group_id):
+  uri = '/repositories/%s/%s/groups/%s' % (username, repo, group_id)
+  response = hub_request(uri, method = 'DELETE')
+  return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
