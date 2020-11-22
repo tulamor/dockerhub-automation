@@ -132,3 +132,28 @@ def delete_permissions(username, repo, group_id):
   uri = '/repositories/%s/%s/groups/%s' % (username, repo, group_id)
   response = hub_request(uri, method = 'DELETE')
   return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+
+def get_tags(image, page_size=500):
+  uri = '/repositories/%s/tags' % image
+  payload = {"page_size" : page_size}
+  response = hub_request(uri, params=payload, json=True)
+  tags = []
+  try:
+    for tag in response['results']:
+      tags.append(str(tag['name']))
+  except: return (False, response)
+  return (True, tags)
+
+def delete_tag(repo, tag):
+  uri = '/repositories/%s/tags/%s/' % (repo, tag)
+  response = hub_request(uri, method = 'DELETE')
+  return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+
+def logout():
+  uri = '/logout/'
+  return hub_request(uri, method='POST', json=True)['detail']
+
+def get_digest_of_image(repo, tag):
+  uri = '/repositories/%s/tags/%s' % (repo, tag)
+  try: return (True, hub_request(uri, json=True)['images'][0]['digest'].split(":")[-1])
+  except: return (False, hub_request(uri).text)
