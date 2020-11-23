@@ -157,3 +157,39 @@ def get_digest_of_image(repo, tag):
   uri = '/repositories/%s/tags/%s' % (repo, tag)
   try: return (True, hub_request(uri, json=True)['images'][0]['digest'].split(":")[-1])
   except: return (False, hub_request(uri).text)
+
+def get_manifest(image):
+  global DOCKER_IMAGE_CACHE
+  if image in DOCKER_IMAGE_CACHE:
+    return DOCKER_IMAGE_CACHE[image]
+  repo = image.split(":",1)[0]
+  if '/' not in repo:
+    repo = 'library/'+repo
+  tag = image.split(":",1)[-1]
+  if repo==tag: tag="latest"
+  url = '%s/%s/manifests/%s' % (DOCKER_REGISTRY_API, repo, tag)
+  token = get_registry_token(repo)
+  headers = {}
+  headers['Accept'] = 'application/vnd.docker.distribution.manifest.list.v2+json'
+  headers['Authorization'] = 'Bearer %s' % token
+  DOCKER_IMAGE_CACHE[image] = http_request(url, None, None, headers, json=True)
+  return DOCKER_IMAGE_CACHE[image]
+
+def get_layers(image, arch=""):
+  manifest = get_manifest(image)
+  try:
+    return {'architecture': manifest['architecture'],
+            'fsLayers': [layer['blobSum'] for layer in manifest['fsLayers']]}
+  except:
+    try:
+      digest = ""
+      for m in manifest['manifests']:
+        if m['platform']['architecture'] == arch:
+          digest = m['digest']
+          break
+      if not digest: return manifest
+      repo = image.split(":",1)[0]
+      manifest = get_manifest("%s:%s" % (repo,digest))
+      return {'architecture': arch,'fsLayers' : [layer['digest'] for layer in manifest['layers']]}
+    except:
+      return manifest
