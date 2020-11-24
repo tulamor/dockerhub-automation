@@ -193,3 +193,27 @@ def get_layers(image, arch=""):
       return {'architecture': arch,'fsLayers' : [layer['digest'] for layer in manifest['layers']]}
     except:
       return manifest
+
+def get_labels(image):
+  manifest = get_manifest(image)
+  if ('errors' in manifest) and (manifest[u'errors'][0][u'code'] == 'MANIFEST_UNKNOWN'):
+    return {}
+  return loads(manifest['history'][0]['v1Compatibility'])['container_config']['Labels']
+
+def has_parent_changed(parent, image):
+  image_manifest = get_layers(image)
+  try: image_manifest['fsLayers']
+  except KeyError:
+    if image_manifest[u'errors'][0][u'code'] == 'MANIFEST_UNKNOWN':
+      print("Image %s not found" % image)
+      return True
+    else:
+      raise Exception(image_manifest)
+  parent_layers = get_layers(parent, image_manifest['architecture'])['fsLayers']
+  image_layers = image_manifest['fsLayers']
+  print("Layers: %s\n  %s" % (parent,"\n  ".join(parent_layers)))
+  print("Layers: %s\n  %s" % (image ,"\n  ".join(image_layers)))
+  while parent_layers and image_layers:
+    if parent_layers.pop()!=image_layers.pop():
+      return True
+  return len(parent_layers)>0
