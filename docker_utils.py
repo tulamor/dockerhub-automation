@@ -217,3 +217,36 @@ def has_parent_changed(parent, image):
     if parent_layers.pop()!=image_layers.pop():
       return True
   return len(parent_layers)>0
+
+
+def generate_yaml(username):
+  teams_dict = {}
+  repositories_dict = {}
+  hub_teams = get_teams(username)
+  if not hub_teams[0]:
+    print(hub_teams[1])
+    return False
+  for team in hub_teams[1]:
+    members_in_hub = get_members(username, team)[1]
+    if members_in_hub == []: members_in_hub = None
+    teams_dict[team] = members_in_hub
+    if team != 'owners':
+      permissions_for_repos = get_permissions(username, team)[1]
+      repos_list = permissions_for_repos.keys()
+      for repo in repos_list:
+        team_access_pair = {}
+        repo_permissions = {}
+        team_access_pair[team] = permissions_for_repos[repo]
+        repo_permissions[repo] = team_access_pair
+        if next(iter(repo_permissions)) in repositories_dict.keys():
+          repositories_dict[next(iter(repo_permissions))].update(next(iter(repo_permissions.values())))
+        else:
+          repositories_dict.update(repo_permissions)
+  docker_config = dict.fromkeys(['repositories', 'teams'])
+  docker_config['teams'] = teams_dict
+  docker_config['repositories'] = repositories_dict
+  logout()
+  yaml_location = join(dirname(dirname(abspath(__file__))), 'generated-docker-config.yaml')
+  with open(yaml_location, 'w') as file:
+    yaml.safe_dump(docker_config, file, encoding='utf-8', allow_unicode=True, default_flow_style=False)
+  return True
