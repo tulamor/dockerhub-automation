@@ -6,6 +6,7 @@ from os.path import dirname, abspath, join, expanduser
 from requests import request
 from requests.exceptions import HTTPError
 import os, glob
+import yaml
 
 DOCKER_REGISTRY_API='https://registry-1.docker.io/v2'
 DOCKER_HUB_API='https://hub.docker.com/v2'
@@ -100,6 +101,19 @@ def delete_member(username, teamname, member):
   uri = '/orgs/%s/groups/%s/members/%s/' % (username, teamname, member)
   response = hub_request(uri, method = 'DELETE')
   return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+
+def get_teams(username, page_size=500):
+  uri = '/orgs/%s/groups/' % username
+  payload = {"page_size" : page_size}
+  response = hub_request(uri, params=payload, json=True)
+  teams = {}
+  try:
+    for team in response['results']:
+      key = str(team['name'])
+      value = str(team['id'])
+      teams[key] = value
+  except: return (False, response)
+  return (True, teams)
 
 def create_team(username, teamname):
   uri = '/orgs/%s/groups/' % username
