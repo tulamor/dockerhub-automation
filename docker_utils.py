@@ -42,6 +42,17 @@ def get_token(filepath=expanduser("~/.docker-token")):
   try: return response['token']
   except: return response
 
+def get_tags(image, page_size=500):
+  uri = '/repositories/%s/tags' % image
+  payload = {"page_size" : page_size}
+  response = hub_request(uri, params=payload, json=True)
+  tags = []
+  try:
+    for tag in response['results']:
+      tags.append(str(tag['name']))
+  except: return (False, response)
+  return (True, tags)
+
 def get_repos(username, page_size=500):
   uri = '/repositories/%s/' % username
   payload = {"page_size" : page_size}
@@ -141,17 +152,6 @@ def delete_permissions(username, repo, group_id):
   uri = '/repositories/%s/%s/groups/%s' % (username, repo, group_id)
   response = hub_request(uri, method = 'DELETE')
   return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
-
-def get_tags(image, page_size=500):
-  uri = '/repositories/%s/tags' % image
-  payload = {"page_size" : page_size}
-  response = hub_request(uri, params=payload, json=True)
-  tags = []
-  try:
-    for tag in response['results']:
-      tags.append(str(tag['name']))
-  except: return (False, response)
-  return (True, tags)
 
 def delete_tag(repo, tag):
   uri = '/repositories/%s/tags/%s/' % (repo, tag)
