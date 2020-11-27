@@ -42,17 +42,6 @@ def get_token(filepath=expanduser("~/.docker-token")):
   try: return response['token']
   except: return response
 
-def get_tags(image, page_size=500):
-  uri = '/repositories/%s/tags' % image
-  payload = {"page_size" : page_size}
-  response = hub_request(uri, params=payload, json=True)
-  tags = []
-  try:
-    for tag in response['results']:
-      tags.append(str(tag['name']))
-  except: return (False, response)
-  return (True, tags)
-
 def get_repos(username, page_size=500):
   uri = '/repositories/%s/' % username
   payload = {"page_size" : page_size}
@@ -79,7 +68,6 @@ def delete_repo(username, repo, force=False):
     response = hub_request(uri, method = 'DELETE')
     return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
   else: return False
-
 
 def get_members(username, teamname):
   uri = '/orgs/%s/groups/%s/members/' % (username, teamname)
@@ -120,6 +108,13 @@ def create_team(username, teamname):
   data = {"name":"%s" % teamname}
   response = hub_request(uri, data=data, method = 'POST')
   return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+
+def delete_team(username, teamname, force=False):
+  uri = '/orgs/%s/groups/%s' % (username, teamname)
+  if force or not get_members(username, teamname)[1]:
+    response = hub_request(uri, method = 'DELETE')
+    return (False, response, response.reason, response.text) if not response.ok else (response.ok,)
+  else: return False
 
 def get_permissions(username, teamname):
   uri = '/orgs/%s/groups/%s/repositories/' % (username, teamname)
@@ -232,7 +227,6 @@ def has_parent_changed(parent, image):
       return True
   return len(parent_layers)>0
 
-
 def generate_yaml(username):
   teams_dict = {}
   repositories_dict = {}
@@ -264,3 +258,22 @@ def generate_yaml(username):
   with open(yaml_location, 'w') as file:
     yaml.safe_dump(docker_config, file, encoding='utf-8', allow_unicode=True, default_flow_style=False)
   return True
+
+def get_layers(image, arch=""):
+  manifest = get_manifest(image)
+  try:
+    return {'architecture': manifest['architecture'],
+            'fsLayers': [layer['blobSum'] for layer in manifest['fsLayers']]}
+  except:
+    try:
+      digest = ""
+      for m in manifest['manifests']:
+        if m['platform']['architecture'] == arch:
+          digest = m['digest']
+          break
+      if not digest: return manifest
+      repo = image.split(":",1)[0]
+      manifest = get_manifest("%s:%s" % (repo,digest))
+      return {'architecture': arch,'fsLayers' : [layer['digest'] for layer in manifest['layers']]}
+    except:
+      return manifest
