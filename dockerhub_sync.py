@@ -68,3 +68,77 @@ def update_dockerhub(config_file, docker_hub, username = args.username, team_nam
       elif what_to_sync == 'members':
         print('###### Deleting member "%s" from "%s" team:' % (list_item, team_name))
         print(dryrun_message) if dryrun else print(delete_member(username, team_name, list_item)[0])
+
+
+yaml_location = join(dirname(dirname(abspath(__file__))), "docker-config.yaml")
+with open(yaml_location) as file:
+  try:
+    from yaml import FullLoader
+    yaml_file = yaml.load(file, Loader=FullLoader)
+  except ImportError as e:
+    yaml_file = yaml.load(file)
+repos_config_dict = yaml_file['repositories']
+yaml_repos = repos_config_dict.keys()
+yaml_teams = yaml_file['teams'].keys()
+# UPDATE REPOSITORIES:
+print('\nSynchronizing repositories for "%s":' % args.username)
+hub_repos = get_repos(args.username)
+if not hub_repos[0]: print(hub_repos[1]) & sys.exit(1)
+if hub_repos[1] == []:
+  print('##### Error: No repositories found. Check Docker Hub username')
+  sys.exit(1)
+update_dockerhub(list(yaml_repos), list(hub_repos[1]), what_to_sync='repos')
+# UPDATE TEAMS:
+print('\nSynchronizing teams for "%s":' % args.username)
+hub_teams = get_teams(args.username)
+if not hub_teams[0]: print(hub_teams[1]) & sys.exit(1)
+update_dockerhub(list(yaml_teams), list(hub_teams[1].keys()), what_to_sync='teams') 
+team_acces_map = {}
+hub_teams = get_teams(args.username)[1]
+for team_name in hub_teams:
+  if team_name != 'owners':
+  # UPDATE PERMISSIONS:
+    print('\nSynchronizing permissions for "%s" team:' % team_name)
+    hub_permissions = get_permissions(args.username, team_name)
+    yaml_permissions = {}
+    if not hub_permissions[0]: print(hub_permissions[1]) & sys.exit(1)
+    for repo in repos_config_dict.keys():
+      try:
+        yaml_permissions[repo] = repos_config_dict[repo][team_name]
+      except Exception:
+        continue
+    if not yaml_permissions:
+      print('No repository permissions found in yaml config file for "%s"' % team_name)
+      yaml_access_list = []
+    else:
+      yaml_access_list = yaml_permissions.keys()
+    permissions_to_add = {}
+    for item in hub_permissions[1].items():
+      repository, permission = item[0], item[1]
+      try:
+        if yaml_permissions and yaml_permissions[repository] != permission:
+          continue
+      except KeyError as error:
+        print('###### Error: "%s" repository does not exist on Docker Hub' % repository)
+        continue
+      permissions_to_add[repository] = permission
+    docker_access_list = []
+    docker_access_list = permissions_to_add.keys()
+    team_id = hub_teams[team_name]
+    update_dockerhub(list(yaml_access_list), list(docker_access_list), team_name=team_name, 
+    team_id=team_id, yaml_permissions=yaml_permissions, what_to_sync = 'permissions')
+    # UPDATE MEMBERS:
+    print('\nSynchronizing members for "%s" team:' % team_name)
+    hub_team_members = get_members(args.username, team_name)
+    if team_name not in yaml_teams:
+      continue
+    if not hub_team_members[0]: print(hub_team_members[1]) & sys.exit(1)
+    members_in_yaml = yaml_file['teams'][team_name]
+    if members_in_yaml is None: 
+      print('No members found in yaml config file for "%s"' % team_name)
+      members_in_yaml = []
+    update_dockerhub(members_in_yaml, hub_team_members[1], team_name=team_name, what_to_sync='members')
+logout()
+if args.dryrun and changes_applied:
+  print('\nDOCKER HUB CONFIGURATION CHANGED\n')
+  sys.exit(1)
