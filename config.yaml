@@ -1,0 +1,11 @@
+# Imported from: https://github.com/cms-sw/cms-docker/blob/3782f111bb8681179310729138831844d06f27c1/cms/config.yaml
+
+args:   --build-arg OSG_WN_TAG=${base}:${from} --build-arg BUILD_DATE=$(date +%Y%m%d-%H%m) --build-arg EXTRA_PACKAGES=${packages}
+base:   opensciencegrid/osg-wn
+tags:
+  - rhel7:
+      from: 3.4-el7
+      packages: bzip2
+  - rhel6:
+      from: 3.4-el6
+      packages: compat-readline5
